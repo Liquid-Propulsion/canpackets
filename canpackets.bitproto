@@ -1,0 +1,55 @@
+proto canpackets;
+
+enum SensorType: uint4 {
+    PRESSURE_TRANSDUCER = 0;
+    LOAD_CELL = 1;
+    THERMAL_COUPLE = 2;
+}
+
+// The stages of the rocket firing.
+enum Stage: uint4 {
+    METHANOL_PRESSURIZATION = 0;
+    AIR_PRESSURIZATION = 1;
+    FIRE_NO_IGNITION = 2;
+    FIRE_WITH_IGNITION = 3;
+    PURGE = 4;
+    CLOSE = 5;
+}
+
+// Whether a solenoid is open or closed.
+enum SolenoidState: uint1 {
+    CLOSED = 0;
+    OPEN = 1;
+}
+
+type ID = uint8
+
+// Changes the ID of one of the nodes. (Sent by the mainland.)
+// ID: 0x04
+message ChangeIDPacket {
+    ID previous_id = 1
+    ID new_id = 2
+}
+
+// Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
+// Cannot be sent at the same time as a staging packet, although multiple of these can be sent in sequence.
+// ID: 0x02
+message SolenoidStatePacket {
+    ID id = 1
+    SolenoidState state = 2
+}
+
+// Must be repeated every 20ms, otherwise the solenoids will be closed and power will be cut. (Sent by the mainland.)
+// ID: 0x00
+message StagePacket {
+    bool system_ready = 1;
+    Stage stage = 2;
+}
+
+// ID: 0x03
+message SensorData {
+    ID node_id = 1;
+    uint4 sensor_id = 2;
+    SensorType sensor_type = 3;
+    uint32 sensor_data = 4;
+}
