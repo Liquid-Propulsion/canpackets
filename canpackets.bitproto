@@ -6,6 +6,13 @@ enum SensorType: uint4 {
     THERMAL_COUPLE = 2;
 }
 
+enum NodeType: uint4 {
+    PRESSURE_TRANSDUCER = 0;
+    LOAD_CELL = 1;
+    THERMAL_COUPLE = 2;
+    SOLENOID = 3;
+}
+
 // The stages of the rocket firing.
 enum Stage: uint4 {
     METHANOL_PRESSURIZATION = 0;
@@ -24,13 +31,6 @@ enum SolenoidState: uint1 {
 
 type ID = uint8
 
-// Changes the ID of one of the nodes. (Sent by the mainland.)
-// ID: 0x04
-message ChangeIDPacket {
-    ID previous_id = 1
-    ID new_id = 2
-}
-
 // Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
 // Cannot be sent at the same time as a staging packet, although multiple of these can be sent in sequence.
 // ID: 0x02
@@ -39,17 +39,40 @@ message SolenoidStatePacket {
     SolenoidState state = 2
 }
 
-// Must be repeated every 20ms, otherwise the solenoids will be closed and power will be cut. (Sent by the mainland.)
-// ID: 0x00
+// Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
+// ID: 0x01
 message StagePacket {
     bool system_ready = 1;
     Stage stage = 2;
 }
 
+// Must be repeated every 20ms, otherwise the power will be cut to all solenoids. (Sent by the mainland.)
+// ID: 0x00
+message PowerPacket {
+    bool system_powered = 1;
+}
+
+// Sent by a Mainland node, triggers all Island nodes to identify themselves with PongPacket;
+// ID: 0x04
+// message PingPacket {} (This packet is empty)
+
+// Causes a Island node to blink it's USER LED for 5 seconds.
+// ID: 0x06
+message BlinkPacket {
+    ID node_id = 1;
+}
+
 // ID: 0x03
-message SensorData {
+message SensorDataPacket {
     ID node_id = 1;
     uint4 sensor_id = 2;
     SensorType sensor_type = 3;
     uint32 sensor_data = 4;
+}
+
+// Returned by all Island nodes, identifying their ID and their sensor type.
+// ID: 0x05
+message PongPacket {
+    ID node_id = 1;
+    NodeType node_type = 2;
 }

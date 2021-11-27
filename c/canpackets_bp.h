@@ -22,6 +22,13 @@ typedef uint8_t SensorType; // 4bit
 #define LOAD_CELL 1
 #define THERMAL_COUPLE 2
 
+typedef uint8_t NodeType; // 4bit
+
+#define PRESSURE_TRANSDUCER 0
+#define LOAD_CELL 1
+#define THERMAL_COUPLE 2
+#define SOLENOID 3
+
 // The stages of the rocket firing.
 typedef uint8_t Stage; // 4bit
 
@@ -40,16 +47,6 @@ typedef uint8_t SolenoidState; // 1bit
 
 typedef uint8_t ID; // 8bit
 
-// Number of bytes to encode struct ChangeIDPacket
-#define BYTES_LENGTH_CHANGE_ID_PACKET 2
-
-// Changes the ID of one of the nodes. (Sent by the mainland.)
-// ID: 0x04
-struct ChangeIDPacket {
-    ID previous_id; // 8bit
-    ID new_id; // 8bit
-};
-
 // Number of bytes to encode struct SolenoidStatePacket
 #define BYTES_LENGTH_SOLENOID_STATE_PACKET 2
 
@@ -64,30 +61,51 @@ struct SolenoidStatePacket {
 // Number of bytes to encode struct StagePacket
 #define BYTES_LENGTH_STAGE_PACKET 1
 
-// Must be repeated every 20ms, otherwise the solenoids will be closed and power will be cut. (Sent by the mainland.)
-// ID: 0x00
+// Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
+// ID: 0x01
 struct StagePacket {
     bool system_ready; // 1bit
     Stage stage; // 4bit
 };
 
-// Number of bytes to encode struct SensorData
-#define BYTES_LENGTH_SENSOR_DATA 6
+// Number of bytes to encode struct PowerPacket
+#define BYTES_LENGTH_POWER_PACKET 1
+
+// Must be repeated every 20ms, otherwise the power will be cut to all solenoids. (Sent by the mainland.)
+// ID: 0x00
+struct PowerPacket {
+    bool system_powered; // 1bit
+};
+
+// Number of bytes to encode struct BlinkPacket
+#define BYTES_LENGTH_BLINK_PACKET 1
+
+// Causes a Island node to blink it's USER LED for 5 seconds.
+// ID: 0x06
+struct BlinkPacket {
+    ID node_id; // 8bit
+};
+
+// Number of bytes to encode struct SensorDataPacket
+#define BYTES_LENGTH_SENSOR_DATA_PACKET 6
 
 // ID: 0x03
-struct SensorData {
+struct SensorDataPacket {
     ID node_id; // 8bit
     uint8_t sensor_id; // 4bit
     SensorType sensor_type; // 4bit
     uint32_t sensor_data; // 32bit
 };
 
-// Encode struct ChangeIDPacket to given buffer s.
-int EncodeChangeIDPacket(struct ChangeIDPacket *m, unsigned char *s);
-// Decode struct ChangeIDPacket from given buffer s.
-int DecodeChangeIDPacket(struct ChangeIDPacket *m, unsigned char *s);
-// Format struct ChangeIDPacket to a json format string.
-int JsonChangeIDPacket(struct ChangeIDPacket *m, char *s);
+// Number of bytes to encode struct PongPacket
+#define BYTES_LENGTH_PONG_PACKET 2
+
+// Returned by all Island nodes, identifying their ID and their sensor type.
+// ID: 0x05
+struct PongPacket {
+    ID node_id; // 8bit
+    NodeType node_type; // 4bit
+};
 
 // Encode struct SolenoidStatePacket to given buffer s.
 int EncodeSolenoidStatePacket(struct SolenoidStatePacket *m, unsigned char *s);
@@ -103,18 +121,36 @@ int DecodeStagePacket(struct StagePacket *m, unsigned char *s);
 // Format struct StagePacket to a json format string.
 int JsonStagePacket(struct StagePacket *m, char *s);
 
-// Encode struct SensorData to given buffer s.
-int EncodeSensorData(struct SensorData *m, unsigned char *s);
-// Decode struct SensorData from given buffer s.
-int DecodeSensorData(struct SensorData *m, unsigned char *s);
-// Format struct SensorData to a json format string.
-int JsonSensorData(struct SensorData *m, char *s);
+// Encode struct PowerPacket to given buffer s.
+int EncodePowerPacket(struct PowerPacket *m, unsigned char *s);
+// Decode struct PowerPacket from given buffer s.
+int DecodePowerPacket(struct PowerPacket *m, unsigned char *s);
+// Format struct PowerPacket to a json format string.
+int JsonPowerPacket(struct PowerPacket *m, char *s);
+
+// Encode struct BlinkPacket to given buffer s.
+int EncodeBlinkPacket(struct BlinkPacket *m, unsigned char *s);
+// Decode struct BlinkPacket from given buffer s.
+int DecodeBlinkPacket(struct BlinkPacket *m, unsigned char *s);
+// Format struct BlinkPacket to a json format string.
+int JsonBlinkPacket(struct BlinkPacket *m, char *s);
+
+// Encode struct SensorDataPacket to given buffer s.
+int EncodeSensorDataPacket(struct SensorDataPacket *m, unsigned char *s);
+// Decode struct SensorDataPacket from given buffer s.
+int DecodeSensorDataPacket(struct SensorDataPacket *m, unsigned char *s);
+// Format struct SensorDataPacket to a json format string.
+int JsonSensorDataPacket(struct SensorDataPacket *m, char *s);
+
+// Encode struct PongPacket to given buffer s.
+int EncodePongPacket(struct PongPacket *m, unsigned char *s);
+// Decode struct PongPacket from given buffer s.
+int DecodePongPacket(struct PongPacket *m, unsigned char *s);
+// Format struct PongPacket to a json format string.
+int JsonPongPacket(struct PongPacket *m, char *s);
 
 void BpXXXProcessID(void *data, struct BpProcessorContext *ctx);
 void BpXXXJsonFormatID(void *data, struct BpJsonFormatContext *ctx);
-
-void BpXXXProcessChangeIDPacket(void *data, struct BpProcessorContext *ctx);
-void BpXXXJsonFormatChangeIDPacket(void *data, struct BpJsonFormatContext *ctx);
 
 void BpXXXProcessSolenoidStatePacket(void *data, struct BpProcessorContext *ctx);
 void BpXXXJsonFormatSolenoidStatePacket(void *data, struct BpJsonFormatContext *ctx);
@@ -122,8 +158,17 @@ void BpXXXJsonFormatSolenoidStatePacket(void *data, struct BpJsonFormatContext *
 void BpXXXProcessStagePacket(void *data, struct BpProcessorContext *ctx);
 void BpXXXJsonFormatStagePacket(void *data, struct BpJsonFormatContext *ctx);
 
-void BpXXXProcessSensorData(void *data, struct BpProcessorContext *ctx);
-void BpXXXJsonFormatSensorData(void *data, struct BpJsonFormatContext *ctx);
+void BpXXXProcessPowerPacket(void *data, struct BpProcessorContext *ctx);
+void BpXXXJsonFormatPowerPacket(void *data, struct BpJsonFormatContext *ctx);
+
+void BpXXXProcessBlinkPacket(void *data, struct BpProcessorContext *ctx);
+void BpXXXJsonFormatBlinkPacket(void *data, struct BpJsonFormatContext *ctx);
+
+void BpXXXProcessSensorDataPacket(void *data, struct BpProcessorContext *ctx);
+void BpXXXJsonFormatSensorDataPacket(void *data, struct BpJsonFormatContext *ctx);
+
+void BpXXXProcessPongPacket(void *data, struct BpProcessorContext *ctx);
+void BpXXXJsonFormatPongPacket(void *data, struct BpJsonFormatContext *ctx);
 
 #if defined(__cplusplus)
 }

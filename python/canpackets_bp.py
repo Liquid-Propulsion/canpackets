@@ -23,6 +23,23 @@ def bp_processor_SensorType() -> bp.Processor:
     return bp.EnumProcessor(bp.Uint(4))
 
 
+NodeType = int # 4bit
+PRESSURE_TRANSDUCER: NodeType = 0
+LOAD_CELL: NodeType = 1
+THERMAL_COUPLE: NodeType = 2
+SOLENOID: NodeType = 3
+
+_NODETYPE_VALUE_TO_NAME_MAP: Dict[NodeType, str] = {
+    0: "PRESSURE_TRANSDUCER",
+    1: "LOAD_CELL",
+    2: "THERMAL_COUPLE",
+    3: "SOLENOID",
+}
+
+def bp_processor_NodeType() -> bp.Processor:
+    return bp.EnumProcessor(bp.Uint(4))
+
+
 # The stages of the rocket firing.
 Stage = int # 4bit
 METHANOL_PRESSURIZATION: Stage = 0
@@ -66,61 +83,6 @@ def bp_processor_ID() -> bp.Processor:
 
 def bp_default_factory_ID() -> ID:
     return 0
-
-
-@dataclass
-class ChangeIDPacket(bp.MessageBase):
-    """
-    Changes the ID of one of the nodes. (Sent by the mainland.)
-    ID: 0x04
-    """
-    # Number of bytes to serialize class ChangeIDPacket
-    BYTES_LENGTH: ClassVar[int] = 2
-
-    previous_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
-    new_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
-
-    def bp_processor(self) -> bp.Processor:
-        field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp_processor_ID()),
-            bp.MessageFieldProcessor(2, bp_processor_ID()),
-        ]
-        return bp.MessageProcessor(False, 16, field_processors)
-
-    def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
-        if di.field_number == 1:
-            self.previous_id |= (int(b) << lshift)
-        if di.field_number == 2:
-            self.new_id |= (int(b) << lshift)
-        return
-
-    def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
-        if di.field_number == 1:
-            return (self.previous_id >> rshift) & 255
-        if di.field_number == 2:
-            return (self.new_id >> rshift) & 255
-        return bp.byte(0)  # Won't reached
-
-    def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
-        return bp.NilAccessor() # Won't reached
-
-    def encode(self) -> bytearray:
-        """
-        Encode this object to bytearray.
-        """
-        s = bytearray(self.BYTES_LENGTH)
-        ctx = bp.ProcessContext(True, s)
-        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
-        return ctx.s
-
-    def decode(self, s: bytearray) -> None:
-        """
-        Decode given bytearray s to this object.
-        :param s: A bytearray with length at least `BYTES_LENGTH`.
-        """
-        assert len(s) >= self.BYTES_LENGTH, bp.NotEnoughBytes()
-        ctx = bp.ProcessContext(False, s)
-        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
 
 
 @dataclass
@@ -182,8 +144,8 @@ class SolenoidStatePacket(bp.MessageBase):
 @dataclass
 class StagePacket(bp.MessageBase):
     """
-    Must be repeated every 20ms, otherwise the solenoids will be closed and power will be cut. (Sent by the mainland.)
-    ID: 0x00
+    Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
+    ID: 0x01
     """
     # Number of bytes to serialize class StagePacket
     BYTES_LENGTH: ClassVar[int] = 1
@@ -235,11 +197,109 @@ class StagePacket(bp.MessageBase):
 
 
 @dataclass
-class SensorData(bp.MessageBase):
+class PowerPacket(bp.MessageBase):
+    """
+    Must be repeated every 20ms, otherwise the power will be cut to all solenoids. (Sent by the mainland.)
+    ID: 0x00
+    """
+    # Number of bytes to serialize class PowerPacket
+    BYTES_LENGTH: ClassVar[int] = 1
+
+    system_powered: bool = False # 1bit
+
+    def bp_processor(self) -> bp.Processor:
+        field_processors: List[bp.Processor] = [
+            bp.MessageFieldProcessor(1, bp.Bool()),
+        ]
+        return bp.MessageProcessor(False, 1, field_processors)
+
+    def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
+        if di.field_number == 1:
+            self.system_powered = bool(b)
+        return
+
+    def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
+        if di.field_number == 1:
+            return (int(self.system_powered) >> rshift) & 255
+        return bp.byte(0)  # Won't reached
+
+    def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
+        return bp.NilAccessor() # Won't reached
+
+    def encode(self) -> bytearray:
+        """
+        Encode this object to bytearray.
+        """
+        s = bytearray(self.BYTES_LENGTH)
+        ctx = bp.ProcessContext(True, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+        return ctx.s
+
+    def decode(self, s: bytearray) -> None:
+        """
+        Decode given bytearray s to this object.
+        :param s: A bytearray with length at least `BYTES_LENGTH`.
+        """
+        assert len(s) >= self.BYTES_LENGTH, bp.NotEnoughBytes()
+        ctx = bp.ProcessContext(False, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+
+
+@dataclass
+class BlinkPacket(bp.MessageBase):
+    """
+    Causes a Island node to blink it's USER LED for 5 seconds.
+    ID: 0x06
+    """
+    # Number of bytes to serialize class BlinkPacket
+    BYTES_LENGTH: ClassVar[int] = 1
+
+    node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
+
+    def bp_processor(self) -> bp.Processor:
+        field_processors: List[bp.Processor] = [
+            bp.MessageFieldProcessor(1, bp_processor_ID()),
+        ]
+        return bp.MessageProcessor(False, 8, field_processors)
+
+    def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
+        if di.field_number == 1:
+            self.node_id |= (int(b) << lshift)
+        return
+
+    def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
+        if di.field_number == 1:
+            return (self.node_id >> rshift) & 255
+        return bp.byte(0)  # Won't reached
+
+    def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
+        return bp.NilAccessor() # Won't reached
+
+    def encode(self) -> bytearray:
+        """
+        Encode this object to bytearray.
+        """
+        s = bytearray(self.BYTES_LENGTH)
+        ctx = bp.ProcessContext(True, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+        return ctx.s
+
+    def decode(self, s: bytearray) -> None:
+        """
+        Decode given bytearray s to this object.
+        :param s: A bytearray with length at least `BYTES_LENGTH`.
+        """
+        assert len(s) >= self.BYTES_LENGTH, bp.NotEnoughBytes()
+        ctx = bp.ProcessContext(False, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+
+
+@dataclass
+class SensorDataPacket(bp.MessageBase):
     """
     ID: 0x03
     """
-    # Number of bytes to serialize class SensorData
+    # Number of bytes to serialize class SensorDataPacket
     BYTES_LENGTH: ClassVar[int] = 6
 
     node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
@@ -276,6 +336,61 @@ class SensorData(bp.MessageBase):
             return (self.sensor_type >> rshift) & 255
         if di.field_number == 4:
             return (self.sensor_data >> rshift) & 255
+        return bp.byte(0)  # Won't reached
+
+    def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
+        return bp.NilAccessor() # Won't reached
+
+    def encode(self) -> bytearray:
+        """
+        Encode this object to bytearray.
+        """
+        s = bytearray(self.BYTES_LENGTH)
+        ctx = bp.ProcessContext(True, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+        return ctx.s
+
+    def decode(self, s: bytearray) -> None:
+        """
+        Decode given bytearray s to this object.
+        :param s: A bytearray with length at least `BYTES_LENGTH`.
+        """
+        assert len(s) >= self.BYTES_LENGTH, bp.NotEnoughBytes()
+        ctx = bp.ProcessContext(False, s)
+        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
+
+
+@dataclass
+class PongPacket(bp.MessageBase):
+    """
+    Returned by all Island nodes, identifying their ID and their sensor type.
+    ID: 0x05
+    """
+    # Number of bytes to serialize class PongPacket
+    BYTES_LENGTH: ClassVar[int] = 2
+
+    node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
+    node_type: NodeType = 0 # 4bit
+
+    def bp_processor(self) -> bp.Processor:
+        field_processors: List[bp.Processor] = [
+            bp.MessageFieldProcessor(1, bp_processor_ID()),
+            bp.MessageFieldProcessor(2, bp_processor_NodeType()),
+        ]
+        return bp.MessageProcessor(False, 12, field_processors)
+
+    def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
+        if di.field_number == 1:
+            self.node_id |= (int(b) << lshift)
+        if di.field_number == 2:
+            self.node_type |= (NodeType(b) << lshift)
+        return
+
+    def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
+        if di.field_number == 1:
+            return (self.node_id >> rshift) & 255
+        if di.field_number == 2:
+            return (self.node_type >> rshift) & 255
         return bp.byte(0)  # Won't reached
 
     def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:

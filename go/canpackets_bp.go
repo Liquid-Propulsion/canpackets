@@ -40,6 +40,35 @@ func (v SensorType) String() string {
 	}
 }
 
+type NodeType uint8 // 4bit
+
+const (
+	PRESSURE_TRANSDUCER NodeType = 0
+	LOAD_CELL = 1
+	THERMAL_COUPLE = 2
+	SOLENOID = 3
+)
+
+func (m NodeType) BpProcessor() bp.Processor {
+	return bp.NewEnumProcessor(bp.NewUint(4))
+}
+
+// String returns the name of this enum item.
+func (v NodeType) String() string {
+	switch v {
+	case 0:
+		return "PRESSURE_TRANSDUCER"
+	case 1:
+		return "LOAD_CELL"
+	case 2:
+		return "THERMAL_COUPLE"
+	case 3:
+		return "SOLENOID"
+	default:
+		return "NodeType(" + formatInt(int64(v), 10) + ")"
+	}
+}
+
 // The stages of the rocket firing.
 type Stage uint8 // 4bit
 
@@ -104,73 +133,6 @@ type ID uint8 // 8bit
 
 func (m ID) BpProcessor() bp.Processor {
 	return bp.NewAliasProcessor(bp.NewUint(8))
-}
-
-// Changes the ID of one of the nodes. (Sent by the mainland.)
-// ID: 0x04
-type ChangeIDPacket struct {
-	PreviousId ID `json:"previous_id"` // 8bit
-	NewId ID `json:"new_id"` // 8bit
-}
-
-// Number of bytes to serialize struct ChangeIDPacket
-const BYTES_LENGTH_CHANGE_ID_PACKET uint32 = 2
-
-func (m *ChangeIDPacket) Size() uint32 { return 2 }
-
-// Returns string representation for struct ChangeIDPacket.
-func (m *ChangeIDPacket) String() string {
-	v, _ := jsonMarshal(m)
-	return string(v)
-}
-
-// Encode struct ChangeIDPacket to bytes buffer.
-func (m *ChangeIDPacket) Encode() []byte {
-	ctx := bp.NewEncodeContext(int(m.Size()))
-	m.BpProcessor().Process(ctx, nil, m)
-	return ctx.Buffer()
-}
-
-func (m *ChangeIDPacket) Decode(s []byte) {
-	ctx := bp.NewDecodeContext(s)
-	m.BpProcessor().Process(ctx, nil, m)
-}
-
-func (m *ChangeIDPacket) BpProcessor() bp.Processor {
-	fieldDescriptors := []*bp.MessageFieldProcessor{
-		bp.NewMessageFieldProcessor(1, (ID(0)).BpProcessor()),
-		bp.NewMessageFieldProcessor(2, (ID(0)).BpProcessor()),
-	}
-	return bp.NewMessageProcessor(false, 16, fieldDescriptors)
-}
-
-func (m *ChangeIDPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
-	switch di.F() {
-	default:
-		return nil  // Won't reached
-	}
-}
-
-func (m *ChangeIDPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
-	switch di.F() {
-		case 1:
-			m.PreviousId |= (ID(b) << lshift)
-		case 2:
-			m.NewId |= (ID(b) << lshift)
-		default:
-			return
-	}
-}
-
-func (m *ChangeIDPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
-	switch di.F() {
-		case 1:
-			return byte(m.PreviousId >> rshift)
-		case 2:
-			return byte(m.NewId >> rshift)
-		default:
-			return byte(0) // Won't reached
-	}
 }
 
 // Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
@@ -241,8 +203,8 @@ func (m *SolenoidStatePacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 	}
 }
 
-// Must be repeated every 20ms, otherwise the solenoids will be closed and power will be cut. (Sent by the mainland.)
-// ID: 0x00
+// Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
+// ID: 0x01
 type StagePacket struct {
 	SystemReady bool `json:"system_ready"` // 1bit
 	Stage Stage `json:"stage"` // 4bit
@@ -308,38 +270,160 @@ func (m *StagePacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 	}
 }
 
+// Must be repeated every 20ms, otherwise the power will be cut to all solenoids. (Sent by the mainland.)
+// ID: 0x00
+type PowerPacket struct {
+	SystemPowered bool `json:"system_powered"` // 1bit
+}
+
+// Number of bytes to serialize struct PowerPacket
+const BYTES_LENGTH_POWER_PACKET uint32 = 1
+
+func (m *PowerPacket) Size() uint32 { return 1 }
+
+// Returns string representation for struct PowerPacket.
+func (m *PowerPacket) String() string {
+	v, _ := jsonMarshal(m)
+	return string(v)
+}
+
+// Encode struct PowerPacket to bytes buffer.
+func (m *PowerPacket) Encode() []byte {
+	ctx := bp.NewEncodeContext(int(m.Size()))
+	m.BpProcessor().Process(ctx, nil, m)
+	return ctx.Buffer()
+}
+
+func (m *PowerPacket) Decode(s []byte) {
+	ctx := bp.NewDecodeContext(s)
+	m.BpProcessor().Process(ctx, nil, m)
+}
+
+func (m *PowerPacket) BpProcessor() bp.Processor {
+	fieldDescriptors := []*bp.MessageFieldProcessor{
+		bp.NewMessageFieldProcessor(1, bp.NewBool()),
+	}
+	return bp.NewMessageProcessor(false, 1, fieldDescriptors)
+}
+
+func (m *PowerPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
+	switch di.F() {
+	default:
+		return nil  // Won't reached
+	}
+}
+
+func (m *PowerPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
+	switch di.F() {
+		case 1:
+			m.SystemPowered = bp.Byte2bool(b)
+		default:
+			return
+	}
+}
+
+func (m *PowerPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
+	switch di.F() {
+		case 1:
+			return bp.Bool2byte(m.SystemPowered) >> rshift
+		default:
+			return byte(0) // Won't reached
+	}
+}
+
+// Causes a Island node to blink it's USER LED for 5 seconds.
+// ID: 0x06
+type BlinkPacket struct {
+	NodeId ID `json:"node_id"` // 8bit
+}
+
+// Number of bytes to serialize struct BlinkPacket
+const BYTES_LENGTH_BLINK_PACKET uint32 = 1
+
+func (m *BlinkPacket) Size() uint32 { return 1 }
+
+// Returns string representation for struct BlinkPacket.
+func (m *BlinkPacket) String() string {
+	v, _ := jsonMarshal(m)
+	return string(v)
+}
+
+// Encode struct BlinkPacket to bytes buffer.
+func (m *BlinkPacket) Encode() []byte {
+	ctx := bp.NewEncodeContext(int(m.Size()))
+	m.BpProcessor().Process(ctx, nil, m)
+	return ctx.Buffer()
+}
+
+func (m *BlinkPacket) Decode(s []byte) {
+	ctx := bp.NewDecodeContext(s)
+	m.BpProcessor().Process(ctx, nil, m)
+}
+
+func (m *BlinkPacket) BpProcessor() bp.Processor {
+	fieldDescriptors := []*bp.MessageFieldProcessor{
+		bp.NewMessageFieldProcessor(1, (ID(0)).BpProcessor()),
+	}
+	return bp.NewMessageProcessor(false, 8, fieldDescriptors)
+}
+
+func (m *BlinkPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
+	switch di.F() {
+	default:
+		return nil  // Won't reached
+	}
+}
+
+func (m *BlinkPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
+	switch di.F() {
+		case 1:
+			m.NodeId |= (ID(b) << lshift)
+		default:
+			return
+	}
+}
+
+func (m *BlinkPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
+	switch di.F() {
+		case 1:
+			return byte(m.NodeId >> rshift)
+		default:
+			return byte(0) // Won't reached
+	}
+}
+
 // ID: 0x03
-type SensorData struct {
+type SensorDataPacket struct {
 	NodeId ID `json:"node_id"` // 8bit
 	SensorId uint8 `json:"sensor_id"` // 4bit
 	SensorType SensorType `json:"sensor_type"` // 4bit
 	SensorData uint32 `json:"sensor_data"` // 32bit
 }
 
-// Number of bytes to serialize struct SensorData
-const BYTES_LENGTH_SENSOR_DATA uint32 = 6
+// Number of bytes to serialize struct SensorDataPacket
+const BYTES_LENGTH_SENSOR_DATA_PACKET uint32 = 6
 
-func (m *SensorData) Size() uint32 { return 6 }
+func (m *SensorDataPacket) Size() uint32 { return 6 }
 
-// Returns string representation for struct SensorData.
-func (m *SensorData) String() string {
+// Returns string representation for struct SensorDataPacket.
+func (m *SensorDataPacket) String() string {
 	v, _ := jsonMarshal(m)
 	return string(v)
 }
 
-// Encode struct SensorData to bytes buffer.
-func (m *SensorData) Encode() []byte {
+// Encode struct SensorDataPacket to bytes buffer.
+func (m *SensorDataPacket) Encode() []byte {
 	ctx := bp.NewEncodeContext(int(m.Size()))
 	m.BpProcessor().Process(ctx, nil, m)
 	return ctx.Buffer()
 }
 
-func (m *SensorData) Decode(s []byte) {
+func (m *SensorDataPacket) Decode(s []byte) {
 	ctx := bp.NewDecodeContext(s)
 	m.BpProcessor().Process(ctx, nil, m)
 }
 
-func (m *SensorData) BpProcessor() bp.Processor {
+func (m *SensorDataPacket) BpProcessor() bp.Processor {
 	fieldDescriptors := []*bp.MessageFieldProcessor{
 		bp.NewMessageFieldProcessor(1, (ID(0)).BpProcessor()),
 		bp.NewMessageFieldProcessor(2, bp.NewUint(4)),
@@ -349,14 +433,14 @@ func (m *SensorData) BpProcessor() bp.Processor {
 	return bp.NewMessageProcessor(false, 48, fieldDescriptors)
 }
 
-func (m *SensorData) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
+func (m *SensorDataPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
 	switch di.F() {
 	default:
 		return nil  // Won't reached
 	}
 }
 
-func (m *SensorData) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
+func (m *SensorDataPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
 	switch di.F() {
 		case 1:
 			m.NodeId |= (ID(b) << lshift)
@@ -371,7 +455,7 @@ func (m *SensorData) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
 	}
 }
 
-func (m *SensorData) BpGetByte(di *bp.DataIndexer, rshift int) byte {
+func (m *SensorDataPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 	switch di.F() {
 		case 1:
 			return byte(m.NodeId >> rshift)
@@ -381,6 +465,73 @@ func (m *SensorData) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 			return byte(m.SensorType >> rshift)
 		case 4:
 			return byte(m.SensorData >> rshift)
+		default:
+			return byte(0) // Won't reached
+	}
+}
+
+// Returned by all Island nodes, identifying their ID and their sensor type.
+// ID: 0x05
+type PongPacket struct {
+	NodeId ID `json:"node_id"` // 8bit
+	NodeType NodeType `json:"node_type"` // 4bit
+}
+
+// Number of bytes to serialize struct PongPacket
+const BYTES_LENGTH_PONG_PACKET uint32 = 2
+
+func (m *PongPacket) Size() uint32 { return 2 }
+
+// Returns string representation for struct PongPacket.
+func (m *PongPacket) String() string {
+	v, _ := jsonMarshal(m)
+	return string(v)
+}
+
+// Encode struct PongPacket to bytes buffer.
+func (m *PongPacket) Encode() []byte {
+	ctx := bp.NewEncodeContext(int(m.Size()))
+	m.BpProcessor().Process(ctx, nil, m)
+	return ctx.Buffer()
+}
+
+func (m *PongPacket) Decode(s []byte) {
+	ctx := bp.NewDecodeContext(s)
+	m.BpProcessor().Process(ctx, nil, m)
+}
+
+func (m *PongPacket) BpProcessor() bp.Processor {
+	fieldDescriptors := []*bp.MessageFieldProcessor{
+		bp.NewMessageFieldProcessor(1, (ID(0)).BpProcessor()),
+		bp.NewMessageFieldProcessor(2, (NodeType(0)).BpProcessor()),
+	}
+	return bp.NewMessageProcessor(false, 12, fieldDescriptors)
+}
+
+func (m *PongPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
+	switch di.F() {
+	default:
+		return nil  // Won't reached
+	}
+}
+
+func (m *PongPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
+	switch di.F() {
+		case 1:
+			m.NodeId |= (ID(b) << lshift)
+		case 2:
+			m.NodeType |= (NodeType(b) << lshift)
+		default:
+			return
+	}
+}
+
+func (m *PongPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
+	switch di.F() {
+		case 1:
+			return byte(m.NodeId >> rshift)
+		case 2:
+			return byte(m.NodeType >> rshift)
 		default:
 			return byte(0) // Won't reached
 	}
