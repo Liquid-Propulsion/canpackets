@@ -24,10 +24,10 @@ typedef uint8_t SensorType; // 4bit
 
 typedef uint8_t NodeType; // 4bit
 
-#define PRESSURE_TRANSDUCER 0
-#define LOAD_CELL 1
-#define THERMAL_COUPLE 2
-#define SOLENOID 3
+#define PRESSURE_TRANSDUCER_NODE 0
+#define LOAD_CELL_NODE 1
+#define THERMAL_COUPLE_NODE 2
+#define SOLENOID_NODE 3
 
 // The stages of the rocket firing.
 typedef uint8_t Stage; // 4bit

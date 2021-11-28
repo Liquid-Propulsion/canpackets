@@ -43,10 +43,10 @@ func (v SensorType) String() string {
 type NodeType uint8 // 4bit
 
 const (
-	PRESSURE_TRANSDUCER NodeType = 0
-	LOAD_CELL = 1
-	THERMAL_COUPLE = 2
-	SOLENOID = 3
+	PRESSURE_TRANSDUCER_NODE NodeType = 0
+	LOAD_CELL_NODE = 1
+	THERMAL_COUPLE_NODE = 2
+	SOLENOID_NODE = 3
 )
 
 func (m NodeType) BpProcessor() bp.Processor {
@@ -57,13 +57,13 @@ func (m NodeType) BpProcessor() bp.Processor {
 func (v NodeType) String() string {
 	switch v {
 	case 0:
-		return "PRESSURE_TRANSDUCER"
+		return "PRESSURE_TRANSDUCER_NODE"
 	case 1:
-		return "LOAD_CELL"
+		return "LOAD_CELL_NODE"
 	case 2:
-		return "THERMAL_COUPLE"
+		return "THERMAL_COUPLE_NODE"
 	case 3:
-		return "SOLENOID"
+		return "SOLENOID_NODE"
 	default:
 		return "NodeType(" + formatInt(int64(v), 10) + ")"
 	}

@@ -7,10 +7,10 @@ enum SensorType: uint4 {
 }
 
 enum NodeType: uint4 {
-    PRESSURE_TRANSDUCER = 0;
-    LOAD_CELL = 1;
-    THERMAL_COUPLE = 2;
-    SOLENOID = 3;
+    PRESSURE_TRANSDUCER_NODE = 0;
+    LOAD_CELL_NODE = 1;
+    THERMAL_COUPLE_NODE = 2;
+    SOLENOID_NODE = 3;
 }
 
 // The stages of the rocket firing.

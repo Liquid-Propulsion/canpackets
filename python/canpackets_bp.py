@@ -24,16 +24,16 @@ def bp_processor_SensorType() -> bp.Processor:
 
 
 NodeType = int # 4bit
-PRESSURE_TRANSDUCER: NodeType = 0
-LOAD_CELL: NodeType = 1
-THERMAL_COUPLE: NodeType = 2
-SOLENOID: NodeType = 3
+PRESSURE_TRANSDUCER_NODE: NodeType = 0
+LOAD_CELL_NODE: NodeType = 1
+THERMAL_COUPLE_NODE: NodeType = 2
+SOLENOID_NODE: NodeType = 3
 
 _NODETYPE_VALUE_TO_NAME_MAP: Dict[NodeType, str] = {
-    0: "PRESSURE_TRANSDUCER",
-    1: "LOAD_CELL",
-    2: "THERMAL_COUPLE",
-    3: "SOLENOID",
+    0: "PRESSURE_TRANSDUCER_NODE",
+    1: "LOAD_CELL_NODE",
+    2: "THERMAL_COUPLE_NODE",
+    3: "SOLENOID_NODE",
 }
 
 def bp_processor_NodeType() -> bp.Processor:
