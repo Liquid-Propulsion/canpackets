@@ -1,11 +1,6 @@
 proto canpackets;
 
-enum SensorType: uint4 {
-    PRESSURE_TRANSDUCER = 0;
-    LOAD_CELL = 1;
-    THERMAL_COUPLE = 2;
-}
-
+// The different types of nodes currently possible, will be exanded in the future.
 enum NodeType: uint4 {
     PRESSURE_TRANSDUCER_NODE = 0;
     LOAD_CELL_NODE = 1;
@@ -13,43 +8,17 @@ enum NodeType: uint4 {
     SOLENOID_NODE = 3;
 }
 
-// The stages of the rocket firing.
-enum Stage: uint4 {
-    METHANOL_PRESSURIZATION = 0;
-    AIR_PRESSURIZATION = 1;
-    FIRE_NO_IGNITION = 2;
-    FIRE_WITH_IGNITION = 3;
-    PURGE = 4;
-    CLOSE = 5;
-}
-
-// Whether a solenoid is open or closed.
-enum SolenoidState: uint1 {
-    CLOSED = 0;
-    OPEN = 1;
-}
-
-type ID = uint8
-
-// Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
-// Cannot be sent at the same time as a staging packet, although multiple of these can be sent in sequence.
-// ID: 0x02
-message SolenoidStatePacket {
-    ID id = 1
-    SolenoidState state = 2
-}
-
 // Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
 // ID: 0x01
 message StagePacket {
-    bool system_ready = 1;
-    Stage stage = 2;
+    bool[64] solenoid_state = 1;
 }
 
 // Must be repeated every 20ms, otherwise the power will be cut to all solenoids. (Sent by the mainland.)
 // ID: 0x00
 message PowerPacket {
     bool system_powered = 1;
+    bool siren  = 2; // Pulls the siren pin high.
 }
 
 // Sent by a Mainland node, triggers all Island nodes to identify themselves with PongPacket;
@@ -59,20 +28,19 @@ message PowerPacket {
 // Causes a Island node to blink it's USER LED for 5 seconds.
 // ID: 0x06
 message BlinkPacket {
-    ID node_id = 1;
+    uint8 node_id = 1;
 }
 
 // ID: 0x03
 message SensorDataPacket {
-    ID node_id = 1;
+    uint8 node_id = 1;
     uint4 sensor_id = 2;
-    SensorType sensor_type = 3;
     uint32 sensor_data = 4;
 }
 
 // Returned by all Island nodes, identifying their ID and their sensor type.
 // ID: 0x05
 message PongPacket {
-    ID node_id = 1;
+    uint8 node_id = 1;
     NodeType node_type = 2;
 }

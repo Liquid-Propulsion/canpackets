@@ -3,73 +3,33 @@
 #include "bitproto.h"
 #include "canpackets_bp.h"
 
-void BpXXXProcessID(void *data, struct BpProcessorContext *ctx) {
-    struct BpAliasDescriptor descriptor = BpAliasDescriptor(BpUint(8, sizeof(uint8_t)));
-    BpEndecodeAlias(&descriptor, ctx, data);
+void BpXXXProcessArrayStagePacket1(void *data, struct BpProcessorContext *ctx) {
+    struct BpArrayDescriptor descriptor = BpArrayDescriptor(false, 64, BpBool());
+    BpEndecodeArray(&descriptor, ctx, data);
 }
 
-void BpXXXJsonFormatID(void *data, struct BpJsonFormatContext *ctx) {
-    struct BpAliasDescriptor descriptor = BpAliasDescriptor(BpUint(8, sizeof(uint8_t)));
-    BpJsonFormatAlias(&descriptor, ctx, data);
-}
-
-void BpFieldDescriptorsInitSolenoidStatePacket(struct SolenoidStatePacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->id), BpAlias(8, sizeof(ID), BpXXXProcessID, BpXXXJsonFormatID), "id");
-    fds[1] = BpMessageFieldDescriptor((void *)&(m->state), BpEnum(1, sizeof(SolenoidState)), "state");
-}
-
-void BpXXXProcessSolenoidStatePacket(void *data, struct BpProcessorContext *ctx) {
-    struct SolenoidStatePacket *m = (struct SolenoidStatePacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[2];
-    BpFieldDescriptorsInitSolenoidStatePacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 9, field_descriptors);
-    BpEndecodeMessage(&descriptor, ctx, data);
-}
-
-void BpXXXJsonFormatSolenoidStatePacket(void *data, struct BpJsonFormatContext *ctx) {
-    struct SolenoidStatePacket *m = (struct SolenoidStatePacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[2];
-    BpFieldDescriptorsInitSolenoidStatePacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 9, field_descriptors);
-    BpJsonFormatMessage(&descriptor, ctx, data);
-}
-
-int EncodeSolenoidStatePacket(struct SolenoidStatePacket *m, unsigned char *s) {
-    struct BpProcessorContext ctx = BpProcessorContext(true, s);
-    BpXXXProcessSolenoidStatePacket((void *)m, &ctx);
-    return 0;
-}
-
-int DecodeSolenoidStatePacket(struct SolenoidStatePacket *m, unsigned char *s) {
-    struct BpProcessorContext ctx = BpProcessorContext(false, s);
-    BpXXXProcessSolenoidStatePacket((void *)m, &ctx);
-    return 0;
-}
-
-int JsonSolenoidStatePacket(struct SolenoidStatePacket *m, char *s) {
-    struct BpJsonFormatContext ctx = BpJsonFormatContext(s);
-    BpXXXJsonFormatSolenoidStatePacket((void *)m, &ctx);
-    return ctx.n;
+void BpXXXJsonFormatArrayStagePacket1(void *data, struct BpJsonFormatContext *ctx) {
+    struct BpArrayDescriptor descriptor = BpArrayDescriptor(false, 64, BpBool());
+    BpJsonFormatArray(&descriptor, ctx, data);
 }
 
 void BpFieldDescriptorsInitStagePacket(struct StagePacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->system_ready), BpBool(), "system_ready");
-    fds[1] = BpMessageFieldDescriptor((void *)&(m->stage), BpEnum(4, sizeof(Stage)), "stage");
+    fds[0] = BpMessageFieldDescriptor((void *)&(m->solenoid_state), BpArray(64, 64 * sizeof(bool), BpXXXProcessArrayStagePacket1, BpXXXJsonFormatArrayStagePacket1), "solenoid_state");
 }
 
 void BpXXXProcessStagePacket(void *data, struct BpProcessorContext *ctx) {
     struct StagePacket *m = (struct StagePacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[2];
+    struct BpMessageFieldDescriptor field_descriptors[1];
     BpFieldDescriptorsInitStagePacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 5, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 1, 64, field_descriptors);
     BpEndecodeMessage(&descriptor, ctx, data);
 }
 
 void BpXXXJsonFormatStagePacket(void *data, struct BpJsonFormatContext *ctx) {
     struct StagePacket *m = (struct StagePacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[2];
+    struct BpMessageFieldDescriptor field_descriptors[1];
     BpFieldDescriptorsInitStagePacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 5, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 1, 64, field_descriptors);
     BpJsonFormatMessage(&descriptor, ctx, data);
 }
 
@@ -93,21 +53,22 @@ int JsonStagePacket(struct StagePacket *m, char *s) {
 
 void BpFieldDescriptorsInitPowerPacket(struct PowerPacket *m, struct BpMessageFieldDescriptor *fds) {
     fds[0] = BpMessageFieldDescriptor((void *)&(m->system_powered), BpBool(), "system_powered");
+    fds[1] = BpMessageFieldDescriptor((void *)&(m->siren), BpBool(), "siren");
 }
 
 void BpXXXProcessPowerPacket(void *data, struct BpProcessorContext *ctx) {
     struct PowerPacket *m = (struct PowerPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[1];
+    struct BpMessageFieldDescriptor field_descriptors[2];
     BpFieldDescriptorsInitPowerPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 1, 1, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 2, field_descriptors);
     BpEndecodeMessage(&descriptor, ctx, data);
 }
 
 void BpXXXJsonFormatPowerPacket(void *data, struct BpJsonFormatContext *ctx) {
     struct PowerPacket *m = (struct PowerPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[1];
+    struct BpMessageFieldDescriptor field_descriptors[2];
     BpFieldDescriptorsInitPowerPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 1, 1, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 2, field_descriptors);
     BpJsonFormatMessage(&descriptor, ctx, data);
 }
 
@@ -130,7 +91,7 @@ int JsonPowerPacket(struct PowerPacket *m, char *s) {
 }
 
 void BpFieldDescriptorsInitBlinkPacket(struct BlinkPacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpAlias(8, sizeof(ID), BpXXXProcessID, BpXXXJsonFormatID), "node_id");
+    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpUint(8, sizeof(uint8_t)), "node_id");
 }
 
 void BpXXXProcessBlinkPacket(void *data, struct BpProcessorContext *ctx) {
@@ -168,25 +129,24 @@ int JsonBlinkPacket(struct BlinkPacket *m, char *s) {
 }
 
 void BpFieldDescriptorsInitSensorDataPacket(struct SensorDataPacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpAlias(8, sizeof(ID), BpXXXProcessID, BpXXXJsonFormatID), "node_id");
+    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpUint(8, sizeof(uint8_t)), "node_id");
     fds[1] = BpMessageFieldDescriptor((void *)&(m->sensor_id), BpUint(4, sizeof(uint8_t)), "sensor_id");
-    fds[2] = BpMessageFieldDescriptor((void *)&(m->sensor_type), BpEnum(4, sizeof(SensorType)), "sensor_type");
-    fds[3] = BpMessageFieldDescriptor((void *)&(m->sensor_data), BpUint(32, sizeof(uint32_t)), "sensor_data");
+    fds[2] = BpMessageFieldDescriptor((void *)&(m->sensor_data), BpUint(32, sizeof(uint32_t)), "sensor_data");
 }
 
 void BpXXXProcessSensorDataPacket(void *data, struct BpProcessorContext *ctx) {
     struct SensorDataPacket *m = (struct SensorDataPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[4];
+    struct BpMessageFieldDescriptor field_descriptors[3];
     BpFieldDescriptorsInitSensorDataPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 4, 48, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 3, 44, field_descriptors);
     BpEndecodeMessage(&descriptor, ctx, data);
 }
 
 void BpXXXJsonFormatSensorDataPacket(void *data, struct BpJsonFormatContext *ctx) {
     struct SensorDataPacket *m = (struct SensorDataPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[4];
+    struct BpMessageFieldDescriptor field_descriptors[3];
     BpFieldDescriptorsInitSensorDataPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 4, 48, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 3, 44, field_descriptors);
     BpJsonFormatMessage(&descriptor, ctx, data);
 }
 
@@ -209,7 +169,7 @@ int JsonSensorDataPacket(struct SensorDataPacket *m, char *s) {
 }
 
 void BpFieldDescriptorsInitPongPacket(struct PongPacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpAlias(8, sizeof(ID), BpXXXProcessID, BpXXXJsonFormatID), "node_id");
+    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpUint(8, sizeof(uint8_t)), "node_id");
     fds[1] = BpMessageFieldDescriptor((void *)&(m->node_type), BpEnum(4, sizeof(NodeType)), "node_type");
 }
 

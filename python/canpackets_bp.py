@@ -8,21 +8,7 @@ from typing import ClassVar, Dict, List
 from bitprotolib import bp
 
 
-SensorType = int # 4bit
-PRESSURE_TRANSDUCER: SensorType = 0
-LOAD_CELL: SensorType = 1
-THERMAL_COUPLE: SensorType = 2
-
-_SENSORTYPE_VALUE_TO_NAME_MAP: Dict[SensorType, str] = {
-    0: "PRESSURE_TRANSDUCER",
-    1: "LOAD_CELL",
-    2: "THERMAL_COUPLE",
-}
-
-def bp_processor_SensorType() -> bp.Processor:
-    return bp.EnumProcessor(bp.Uint(4))
-
-
+# The different types of nodes currently possible, will be exanded in the future.
 NodeType = int # 4bit
 PRESSURE_TRANSDUCER_NODE: NodeType = 0
 LOAD_CELL_NODE: NodeType = 1
@@ -40,107 +26,6 @@ def bp_processor_NodeType() -> bp.Processor:
     return bp.EnumProcessor(bp.Uint(4))
 
 
-# The stages of the rocket firing.
-Stage = int # 4bit
-METHANOL_PRESSURIZATION: Stage = 0
-AIR_PRESSURIZATION: Stage = 1
-FIRE_NO_IGNITION: Stage = 2
-FIRE_WITH_IGNITION: Stage = 3
-PURGE: Stage = 4
-CLOSE: Stage = 5
-
-_STAGE_VALUE_TO_NAME_MAP: Dict[Stage, str] = {
-    0: "METHANOL_PRESSURIZATION",
-    1: "AIR_PRESSURIZATION",
-    2: "FIRE_NO_IGNITION",
-    3: "FIRE_WITH_IGNITION",
-    4: "PURGE",
-    5: "CLOSE",
-}
-
-def bp_processor_Stage() -> bp.Processor:
-    return bp.EnumProcessor(bp.Uint(4))
-
-
-# Whether a solenoid is open or closed.
-SolenoidState = int # 1bit
-CLOSED: SolenoidState = 0
-OPEN: SolenoidState = 1
-
-_SOLENOIDSTATE_VALUE_TO_NAME_MAP: Dict[SolenoidState, str] = {
-    0: "CLOSED",
-    1: "OPEN",
-}
-
-def bp_processor_SolenoidState() -> bp.Processor:
-    return bp.EnumProcessor(bp.Uint(1))
-
-
-ID = int # 8bit
-
-def bp_processor_ID() -> bp.Processor:
-    return bp.AliasProcessor(bp.Uint(8))
-
-def bp_default_factory_ID() -> ID:
-    return 0
-
-
-@dataclass
-class SolenoidStatePacket(bp.MessageBase):
-    """
-    Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
-    Cannot be sent at the same time as a staging packet, although multiple of these can be sent in sequence.
-    ID: 0x02
-    """
-    # Number of bytes to serialize class SolenoidStatePacket
-    BYTES_LENGTH: ClassVar[int] = 2
-
-    id: ID = field(default_factory=bp_default_factory_ID) # 8bit
-    state: SolenoidState = 0 # 1bit
-
-    def bp_processor(self) -> bp.Processor:
-        field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp_processor_ID()),
-            bp.MessageFieldProcessor(2, bp_processor_SolenoidState()),
-        ]
-        return bp.MessageProcessor(False, 9, field_processors)
-
-    def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
-        if di.field_number == 1:
-            self.id |= (int(b) << lshift)
-        if di.field_number == 2:
-            self.state |= (SolenoidState(b) << lshift)
-        return
-
-    def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
-        if di.field_number == 1:
-            return (self.id >> rshift) & 255
-        if di.field_number == 2:
-            return (self.state >> rshift) & 255
-        return bp.byte(0)  # Won't reached
-
-    def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
-        return bp.NilAccessor() # Won't reached
-
-    def encode(self) -> bytearray:
-        """
-        Encode this object to bytearray.
-        """
-        s = bytearray(self.BYTES_LENGTH)
-        ctx = bp.ProcessContext(True, s)
-        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
-        return ctx.s
-
-    def decode(self, s: bytearray) -> None:
-        """
-        Decode given bytearray s to this object.
-        :param s: A bytearray with length at least `BYTES_LENGTH`.
-        """
-        assert len(s) >= self.BYTES_LENGTH, bp.NotEnoughBytes()
-        ctx = bp.ProcessContext(False, s)
-        self.bp_processor().process(ctx, bp.NIL_DATA_INDEXER, self)
-
-
 @dataclass
 class StagePacket(bp.MessageBase):
     """
@@ -148,30 +33,24 @@ class StagePacket(bp.MessageBase):
     ID: 0x01
     """
     # Number of bytes to serialize class StagePacket
-    BYTES_LENGTH: ClassVar[int] = 1
+    BYTES_LENGTH: ClassVar[int] = 8
 
-    system_ready: bool = False # 1bit
-    stage: Stage = 0 # 4bit
+    solenoid_state: List[bool] = field(default_factory=lambda: [False for _ in range(64)]) # 64bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp.Bool()),
-            bp.MessageFieldProcessor(2, bp_processor_Stage()),
+            bp.MessageFieldProcessor(1, bp.Array(False, 64, bp.Bool())),
         ]
-        return bp.MessageProcessor(False, 5, field_processors)
+        return bp.MessageProcessor(False, 64, field_processors)
 
     def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
         if di.field_number == 1:
-            self.system_ready = bool(b)
-        if di.field_number == 2:
-            self.stage |= (Stage(b) << lshift)
+            self.solenoid_state[di.i(0)] = bool(b)
         return
 
     def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
         if di.field_number == 1:
-            return (int(self.system_ready) >> rshift) & 255
-        if di.field_number == 2:
-            return (self.stage >> rshift) & 255
+            return (int(self.solenoid_state[di.i(0)]) >> rshift) & 255
         return bp.byte(0)  # Won't reached
 
     def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
@@ -206,21 +85,27 @@ class PowerPacket(bp.MessageBase):
     BYTES_LENGTH: ClassVar[int] = 1
 
     system_powered: bool = False # 1bit
+    siren: bool = False # 1bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
             bp.MessageFieldProcessor(1, bp.Bool()),
+            bp.MessageFieldProcessor(2, bp.Bool()),
         ]
-        return bp.MessageProcessor(False, 1, field_processors)
+        return bp.MessageProcessor(False, 2, field_processors)
 
     def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
         if di.field_number == 1:
             self.system_powered = bool(b)
+        if di.field_number == 2:
+            self.siren = bool(b)
         return
 
     def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
         if di.field_number == 1:
             return (int(self.system_powered) >> rshift) & 255
+        if di.field_number == 2:
+            return (int(self.siren) >> rshift) & 255
         return bp.byte(0)  # Won't reached
 
     def bp_get_accessor(self, di: bp.DataIndexer) -> bp.Accessor:
@@ -254,11 +139,11 @@ class BlinkPacket(bp.MessageBase):
     # Number of bytes to serialize class BlinkPacket
     BYTES_LENGTH: ClassVar[int] = 1
 
-    node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
+    node_id: int = 0 # 8bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp_processor_ID()),
+            bp.MessageFieldProcessor(1, bp.Uint(8)),
         ]
         return bp.MessageProcessor(False, 8, field_processors)
 
@@ -302,27 +187,23 @@ class SensorDataPacket(bp.MessageBase):
     # Number of bytes to serialize class SensorDataPacket
     BYTES_LENGTH: ClassVar[int] = 6
 
-    node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
+    node_id: int = 0 # 8bit
     sensor_id: int = 0 # 4bit
-    sensor_type: SensorType = 0 # 4bit
     sensor_data: int = 0 # 32bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp_processor_ID()),
+            bp.MessageFieldProcessor(1, bp.Uint(8)),
             bp.MessageFieldProcessor(2, bp.Uint(4)),
-            bp.MessageFieldProcessor(3, bp_processor_SensorType()),
             bp.MessageFieldProcessor(4, bp.Uint(32)),
         ]
-        return bp.MessageProcessor(False, 48, field_processors)
+        return bp.MessageProcessor(False, 44, field_processors)
 
     def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
         if di.field_number == 1:
             self.node_id |= (int(b) << lshift)
         if di.field_number == 2:
             self.sensor_id |= (int(b) << lshift)
-        if di.field_number == 3:
-            self.sensor_type |= (SensorType(b) << lshift)
         if di.field_number == 4:
             self.sensor_data |= (int(b) << lshift)
         return
@@ -332,8 +213,6 @@ class SensorDataPacket(bp.MessageBase):
             return (self.node_id >> rshift) & 255
         if di.field_number == 2:
             return (self.sensor_id >> rshift) & 255
-        if di.field_number == 3:
-            return (self.sensor_type >> rshift) & 255
         if di.field_number == 4:
             return (self.sensor_data >> rshift) & 255
         return bp.byte(0)  # Won't reached
@@ -369,12 +248,12 @@ class PongPacket(bp.MessageBase):
     # Number of bytes to serialize class PongPacket
     BYTES_LENGTH: ClassVar[int] = 2
 
-    node_id: ID = field(default_factory=bp_default_factory_ID) # 8bit
+    node_id: int = 0 # 8bit
     node_type: NodeType = 0 # 4bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp_processor_ID()),
+            bp.MessageFieldProcessor(1, bp.Uint(8)),
             bp.MessageFieldProcessor(2, bp_processor_NodeType()),
         ]
         return bp.MessageProcessor(False, 12, field_processors)

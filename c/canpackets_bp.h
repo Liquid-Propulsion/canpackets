@@ -16,12 +16,7 @@
 extern "C" {
 #endif
 
-typedef uint8_t SensorType; // 4bit
-
-#define PRESSURE_TRANSDUCER 0
-#define LOAD_CELL 1
-#define THERMAL_COUPLE 2
-
+// The different types of nodes currently possible, will be exanded in the future.
 typedef uint8_t NodeType; // 4bit
 
 #define PRESSURE_TRANSDUCER_NODE 0
@@ -29,43 +24,13 @@ typedef uint8_t NodeType; // 4bit
 #define THERMAL_COUPLE_NODE 2
 #define SOLENOID_NODE 3
 
-// The stages of the rocket firing.
-typedef uint8_t Stage; // 4bit
-
-#define METHANOL_PRESSURIZATION 0
-#define AIR_PRESSURIZATION 1
-#define FIRE_NO_IGNITION 2
-#define FIRE_WITH_IGNITION 3
-#define PURGE 4
-#define CLOSE 5
-
-// Whether a solenoid is open or closed.
-typedef uint8_t SolenoidState; // 1bit
-
-#define CLOSED 0
-#define OPEN 1
-
-typedef uint8_t ID; // 8bit
-
-// Number of bytes to encode struct SolenoidStatePacket
-#define BYTES_LENGTH_SOLENOID_STATE_PACKET 2
-
-// Must be repeated every 20ms, otherwise the solenoid will be closed. (Sent by the mainland.)
-// Cannot be sent at the same time as a staging packet, although multiple of these can be sent in sequence.
-// ID: 0x02
-struct SolenoidStatePacket {
-    ID id; // 8bit
-    SolenoidState state; // 1bit
-};
-
 // Number of bytes to encode struct StagePacket
-#define BYTES_LENGTH_STAGE_PACKET 1
+#define BYTES_LENGTH_STAGE_PACKET 8
 
 // Must be repeated every 20ms, otherwise the solenoids will be closed. (Sent by the mainland.)
 // ID: 0x01
 struct StagePacket {
-    bool system_ready; // 1bit
-    Stage stage; // 4bit
+    bool solenoid_state[64]; // 64bit
 };
 
 // Number of bytes to encode struct PowerPacket
@@ -75,6 +40,7 @@ struct StagePacket {
 // ID: 0x00
 struct PowerPacket {
     bool system_powered; // 1bit
+    bool siren; // 1bit
 };
 
 // Number of bytes to encode struct BlinkPacket
@@ -83,7 +49,7 @@ struct PowerPacket {
 // Causes a Island node to blink it's USER LED for 5 seconds.
 // ID: 0x06
 struct BlinkPacket {
-    ID node_id; // 8bit
+    uint8_t node_id; // 8bit
 };
 
 // Number of bytes to encode struct SensorDataPacket
@@ -91,9 +57,8 @@ struct BlinkPacket {
 
 // ID: 0x03
 struct SensorDataPacket {
-    ID node_id; // 8bit
+    uint8_t node_id; // 8bit
     uint8_t sensor_id; // 4bit
-    SensorType sensor_type; // 4bit
     uint32_t sensor_data; // 32bit
 };
 
@@ -103,16 +68,9 @@ struct SensorDataPacket {
 // Returned by all Island nodes, identifying their ID and their sensor type.
 // ID: 0x05
 struct PongPacket {
-    ID node_id; // 8bit
+    uint8_t node_id; // 8bit
     NodeType node_type; // 4bit
 };
-
-// Encode struct SolenoidStatePacket to given buffer s.
-int EncodeSolenoidStatePacket(struct SolenoidStatePacket *m, unsigned char *s);
-// Decode struct SolenoidStatePacket from given buffer s.
-int DecodeSolenoidStatePacket(struct SolenoidStatePacket *m, unsigned char *s);
-// Format struct SolenoidStatePacket to a json format string.
-int JsonSolenoidStatePacket(struct SolenoidStatePacket *m, char *s);
 
 // Encode struct StagePacket to given buffer s.
 int EncodeStagePacket(struct StagePacket *m, unsigned char *s);
@@ -148,12 +106,6 @@ int EncodePongPacket(struct PongPacket *m, unsigned char *s);
 int DecodePongPacket(struct PongPacket *m, unsigned char *s);
 // Format struct PongPacket to a json format string.
 int JsonPongPacket(struct PongPacket *m, char *s);
-
-void BpXXXProcessID(void *data, struct BpProcessorContext *ctx);
-void BpXXXJsonFormatID(void *data, struct BpJsonFormatContext *ctx);
-
-void BpXXXProcessSolenoidStatePacket(void *data, struct BpProcessorContext *ctx);
-void BpXXXJsonFormatSolenoidStatePacket(void *data, struct BpJsonFormatContext *ctx);
 
 void BpXXXProcessStagePacket(void *data, struct BpProcessorContext *ctx);
 void BpXXXJsonFormatStagePacket(void *data, struct BpJsonFormatContext *ctx);
