@@ -33,9 +33,8 @@ message BlinkPacket {
 
 // ID: 0x03
 message SensorDataPacket {
-    uint8 node_id = 1;
-    uint4 sensor_id = 2;
-    uint32 sensor_data = 4;
+    uint4 sensor_id = 1;
+    uint32 sensor_data = 2;
 }
 
 // Returned by all Island nodes, identifying their ID and their sensor type.

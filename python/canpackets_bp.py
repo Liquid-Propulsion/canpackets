@@ -185,35 +185,29 @@ class SensorDataPacket(bp.MessageBase):
     ID: 0x03
     """
     # Number of bytes to serialize class SensorDataPacket
-    BYTES_LENGTH: ClassVar[int] = 6
+    BYTES_LENGTH: ClassVar[int] = 5
 
-    node_id: int = 0 # 8bit
     sensor_id: int = 0 # 4bit
     sensor_data: int = 0 # 32bit
 
     def bp_processor(self) -> bp.Processor:
         field_processors: List[bp.Processor] = [
-            bp.MessageFieldProcessor(1, bp.Uint(8)),
-            bp.MessageFieldProcessor(2, bp.Uint(4)),
-            bp.MessageFieldProcessor(4, bp.Uint(32)),
+            bp.MessageFieldProcessor(1, bp.Uint(4)),
+            bp.MessageFieldProcessor(2, bp.Uint(32)),
         ]
-        return bp.MessageProcessor(False, 44, field_processors)
+        return bp.MessageProcessor(False, 36, field_processors)
 
     def bp_set_byte(self, di: bp.DataIndexer, lshift: int, b: bp.byte) -> None:
         if di.field_number == 1:
-            self.node_id |= (int(b) << lshift)
-        if di.field_number == 2:
             self.sensor_id |= (int(b) << lshift)
-        if di.field_number == 4:
+        if di.field_number == 2:
             self.sensor_data |= (int(b) << lshift)
         return
 
     def bp_get_byte(self, di: bp.DataIndexer, rshift: int) -> bp.byte:
         if di.field_number == 1:
-            return (self.node_id >> rshift) & 255
-        if di.field_number == 2:
             return (self.sensor_id >> rshift) & 255
-        if di.field_number == 4:
+        if di.field_number == 2:
             return (self.sensor_data >> rshift) & 255
         return bp.byte(0)  # Won't reached
 

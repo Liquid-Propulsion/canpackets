@@ -129,24 +129,23 @@ int JsonBlinkPacket(struct BlinkPacket *m, char *s) {
 }
 
 void BpFieldDescriptorsInitSensorDataPacket(struct SensorDataPacket *m, struct BpMessageFieldDescriptor *fds) {
-    fds[0] = BpMessageFieldDescriptor((void *)&(m->node_id), BpUint(8, sizeof(uint8_t)), "node_id");
-    fds[1] = BpMessageFieldDescriptor((void *)&(m->sensor_id), BpUint(4, sizeof(uint8_t)), "sensor_id");
-    fds[2] = BpMessageFieldDescriptor((void *)&(m->sensor_data), BpUint(32, sizeof(uint32_t)), "sensor_data");
+    fds[0] = BpMessageFieldDescriptor((void *)&(m->sensor_id), BpUint(4, sizeof(uint8_t)), "sensor_id");
+    fds[1] = BpMessageFieldDescriptor((void *)&(m->sensor_data), BpUint(32, sizeof(uint32_t)), "sensor_data");
 }
 
 void BpXXXProcessSensorDataPacket(void *data, struct BpProcessorContext *ctx) {
     struct SensorDataPacket *m = (struct SensorDataPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[3];
+    struct BpMessageFieldDescriptor field_descriptors[2];
     BpFieldDescriptorsInitSensorDataPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 3, 44, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 36, field_descriptors);
     BpEndecodeMessage(&descriptor, ctx, data);
 }
 
 void BpXXXJsonFormatSensorDataPacket(void *data, struct BpJsonFormatContext *ctx) {
     struct SensorDataPacket *m = (struct SensorDataPacket *)(data);
-    struct BpMessageFieldDescriptor field_descriptors[3];
+    struct BpMessageFieldDescriptor field_descriptors[2];
     BpFieldDescriptorsInitSensorDataPacket(m, field_descriptors);
-    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 3, 44, field_descriptors);
+    struct BpMessageDescriptor descriptor = BpMessageDescriptor(false, 2, 36, field_descriptors);
     BpJsonFormatMessage(&descriptor, ctx, data);
 }
 

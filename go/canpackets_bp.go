@@ -235,15 +235,14 @@ func (m *BlinkPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 
 // ID: 0x03
 type SensorDataPacket struct {
-	NodeId uint8 `json:"node_id"` // 8bit
 	SensorId uint8 `json:"sensor_id"` // 4bit
 	SensorData uint32 `json:"sensor_data"` // 32bit
 }
 
 // Number of bytes to serialize struct SensorDataPacket
-const BYTES_LENGTH_SENSOR_DATA_PACKET uint32 = 6
+const BYTES_LENGTH_SENSOR_DATA_PACKET uint32 = 5
 
-func (m *SensorDataPacket) Size() uint32 { return 6 }
+func (m *SensorDataPacket) Size() uint32 { return 5 }
 
 // Returns string representation for struct SensorDataPacket.
 func (m *SensorDataPacket) String() string {
@@ -265,11 +264,10 @@ func (m *SensorDataPacket) Decode(s []byte) {
 
 func (m *SensorDataPacket) BpProcessor() bp.Processor {
 	fieldDescriptors := []*bp.MessageFieldProcessor{
-		bp.NewMessageFieldProcessor(1, bp.NewUint(8)),
-		bp.NewMessageFieldProcessor(2, bp.NewUint(4)),
-		bp.NewMessageFieldProcessor(4, bp.NewUint(32)),
+		bp.NewMessageFieldProcessor(1, bp.NewUint(4)),
+		bp.NewMessageFieldProcessor(2, bp.NewUint(32)),
 	}
-	return bp.NewMessageProcessor(false, 44, fieldDescriptors)
+	return bp.NewMessageProcessor(false, 36, fieldDescriptors)
 }
 
 func (m *SensorDataPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
@@ -282,10 +280,8 @@ func (m *SensorDataPacket) BpGetAccessor(di *bp.DataIndexer) bp.Accessor {
 func (m *SensorDataPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
 	switch di.F() {
 		case 1:
-			m.NodeId |= (uint8(b) << lshift)
-		case 2:
 			m.SensorId |= (uint8(b) << lshift)
-		case 4:
+		case 2:
 			m.SensorData |= (uint32(b) << lshift)
 		default:
 			return
@@ -295,10 +291,8 @@ func (m *SensorDataPacket) BpSetByte(di *bp.DataIndexer, lshift int, b byte) {
 func (m *SensorDataPacket) BpGetByte(di *bp.DataIndexer, rshift int) byte {
 	switch di.F() {
 		case 1:
-			return byte(m.NodeId >> rshift)
-		case 2:
 			return byte(m.SensorId >> rshift)
-		case 4:
+		case 2:
 			return byte(m.SensorData >> rshift)
 		default:
 			return byte(0) // Won't reached

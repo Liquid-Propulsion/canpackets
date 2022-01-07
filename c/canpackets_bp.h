@@ -53,11 +53,10 @@ struct BlinkPacket {
 };
 
 // Number of bytes to encode struct SensorDataPacket
-#define BYTES_LENGTH_SENSOR_DATA_PACKET 6
+#define BYTES_LENGTH_SENSOR_DATA_PACKET 5
 
 // ID: 0x03
 struct SensorDataPacket {
-    uint8_t node_id; // 8bit
     uint8_t sensor_id; // 4bit
     uint32_t sensor_data; // 32bit
 };
